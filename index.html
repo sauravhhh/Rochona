@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="as">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rochona — Assamese Essay Tool</title>
+<meta name="description" content="Assamese rochona — read essays, copy them, and write your own.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--text:#1a1a1a;--muted:#666;--border:#e5e5e5;--accent:#b3261e;--bg:#fff}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans Bengali",sans-serif;background:var(--bg);color:var(--text);line-height:1.7;-webkit-font-smoothing:antialiased}
+header{max-width:760px;margin:0 auto;padding:28px 16px 8px}
+header h1{font-size:34px;font-weight:800;letter-spacing:-.02em}
+header h1 span{color:var(--accent)}
+header p{color:var(--muted);font-size:15px}
+.tabs{max-width:760px;margin:14px auto 0;padding:0 16px;display:flex;gap:8px}
+.tabs button{padding:9px 16px;border:1px solid var(--border);background:#fff;border-radius:20px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+.tabs button.active{background:var(--text);color:#fff;border-color:var(--text)}
+main{max-width:760px;margin:0 auto;padding:16px 16px 80px}
+.search{width:100%;padding:12px 14px;font-size:16px;border:1px solid var(--border);border-radius:12px;font-family:inherit;margin-bottom:12px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.chips button{padding:7px 13px;border:1px solid var(--border);background:#fff;border-radius:20px;font-size:14px;cursor:pointer;font-family:inherit}
+.chips button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.card{border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:12px;cursor:pointer;background:#fff}
+.card:hover{border-color:#bbb}
+.card h3{font-size:19px;font-weight:700}
+.card .meta{color:var(--muted);font-size:13px;margin-top:4px}
+.card .prev{color:#444;font-size:15px;margin-top:8px}
+.btn{padding:10px 16px;border-radius:10px;border:1px solid var(--border);background:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.dark{background:var(--text);color:#fff;border-color:var(--text)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.muted{color:var(--muted);font-size:14px}
+.essay p{margin-bottom:14px;font-size:17px}
+textarea{width:100%;min-height:260px;padding:14px;font-size:17px;line-height:1.7;border:1px solid var(--border);border-radius:12px;font-family:inherit;resize:vertical}
+.counts{font-size:14px;color:var(--muted);margin:10px 0}
+.draft{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.draft .t{font-weight:700}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>ৰচনা<span>.</span></h1>
+  <p>Assamese essays — read, copy and write your own.</p>
+</header>
+<div class="tabs">
+  <button id="tabEssays" class="active">Essays</button>
+  <button id="tabWrite">Write</button>
+</div>
+<main>
+  <section id="essaysView">
+    <input id="q" class="search" type="search" placeholder="Search essays…">
+    <div id="chips" class="chips"></div>
+    <div id="list"></div>
+  </section>
+  <section id="readView" class="hidden">
+    <div class="row" style="margin-bottom:14px"><button id="backBtn" class="btn">← All essays</button></div>
+    <h2 id="readTitle" style="font-size:26px;margin-bottom:4px"></h2>
+    <p id="readMeta" class="muted" style="margin-bottom:16px"></p>
+    <div id="readText" class="essay"></div>
+    <div class="row" style="margin-top:18px">
+      <button id="copyBtn" class="btn primary">Copy essay</button>
+      <button id="dlBtn" class="btn">Download .txt</button>
+    </div>
+    <p id="readMsg" class="muted" style="margin-top:10px"></p>
+  </section>
+  <section id="writeView" class="hidden">
+    <input id="draftTitle" class="search" type="text" placeholder="Title of your essay (optional)">
+    <textarea id="editor" placeholder="Write your rochona here in Assamese…"></textarea>
+    <p id="counts" class="counts">0 words · 0 characters</p>
+    <div class="row">
+      <button id="saveDraft" class="btn dark">Save draft</button>
+      <button id="copyDraft" class="btn">Copy</button>
+      <button id="dlDraft" class="btn">Download .txt</button>
+      <button id="clearDraft" class="btn">Clear</button>
+    </div>
+    <p id="writeMsg" class="muted" style="margin-top:10px"></p>
+    <h3 style="margin:22px 0 10px">Your drafts</h3>
+    <div id="drafts"></div>
+  </section>
+</main>
+<script>
+const ESSAYS = [
+{id:"bihu", title:"বিহু", cat:"উৎসৱ", text:
+"বিহু অসমৰ জাতীয় উৎসৱ। বছৰত তিনিবাৰ বিহু পালন কৰা হয়—ৰঙালী বিহু, কঙালী বিহু আৰু ভোগালী বিহু। ইয়াৰ ভিতৰত ৰঙালী বিহু আটাইতকৈ ডাঙৰ। চ'ত মাহৰ শেষত আৰু ব'হাগ মাহৰ আৰম্ভণিতে ৰঙালী বিহু পালন কৰা হয়। ই অসমীয়া নৱবৰ্ষৰ আৰম্ভণি।\n\nবিহুৰ সময়ত গাঁৱে-ভূঞে হুঁচৰি গোৱা হয়। ঢোল, পেঁপা, গগনাৰ মাতত বিহু নাচ হয়। ছোৱালীয়ে মেখেলা-চাদৰ পিন্ধে আৰু ল'ৰাই ধুতি-গামোচা পিন্ধে। ঘৰে ঘৰে পিঠা-পনা, দৈ-চিৰা খোৱা হয়। ডাঙৰক সেৱা কৰি গামোচা দিয়া হয়।\n\nবিহুৱে অসমীয়া সমাজক একগোট কৰে। জাতি-ধৰ্ম নিৰ্বিশেষে সকলোৱে একেলগে আনন্দ কৰে। বিহু আমাৰ সংস্কৃতিৰ প্ৰাণ। এই উৎসৱক আমি সযতনে জীয়াই ৰাখিব লাগে।"},
+{id:"school", title:"মোৰ বিদ্যালয়", cat:"বিদ্যালয়", text:
+"মোৰ বিদ্যালয়খন মোৰ আটাইতকৈ প্ৰিয় ঠাই। আমাৰ বিদ্যালয়খন গাঁৱৰ মাজত অৱস্থিত। ইয়াত এটা ডাঙৰ খেলপথাৰ, এখন পুথিভঁৰাল আৰু এখন সুন্দৰ বাগিচা আছে। প্ৰতিদিনে ৰাতিপুৱা আমি বিদ্যালয়লৈ যাওঁ।\n\nআমাৰ শিক্ষকসকল অতি মৰমিয়াল আৰু জ্ঞানী। তেওঁলোকে আমাক পঢ়াৰ লগতে ভাল মানুহ হ'বলৈ শিকায়। মোৰ বহুতো বন্ধু আছে। আমি একেলগে পঢ়ো, খেলো আৰু টিফিন খাওঁ। বিদ্যালয়ত আমি কিতাপৰ পঢ়াৰ লগতে গান, খেল আৰু ছবি অঁকাও শিকো।\n\nবিদ্যালয়েই আমাৰ জীৱনৰ ভেটি গঢ়ে। ইয়াত শিকা শৃংখলা আৰু মূল্যবোধে আমাক আগলৈ ভাল মানুহ হ'বলৈ সহায় কৰে। সেয়ে মই মোৰ বিদ্যালয়খনক বৰ ভাল পাওঁ।"},
+{id:"pollution", title:"পৰিৱেশ প্ৰদূষণ", cat:"পৰিৱেশ", text:
+"পৰিৱেশ প্ৰদূষণ আজিৰ দিনৰ ডাঙৰ সমস্যা। বায়ু, পানী আৰু মাটি প্ৰদূষিত হৈছে। কল-কাৰখানাৰ ধোঁৱা, গাড়ীৰ ধোঁৱা, প্লাষ্টিক আৰু আৱৰ্জনাই পৰিৱেশ নষ্ট কৰিছে।\n\nপ্ৰদূষণৰ ফলত মানুহৰ স্বাস্থ্য বেয়া হৈছে। নানা ৰোগে দেখা দিছে। গছ-গছনি কমি যোৱাৰ ফলত বৰষুণ কমিছে আৰু গৰম বাঢ়িছে। পশু-পক্ষীৰ বাসস্থান নষ্ট হৈছে।\n\nপৰিৱেশ ৰক্ষা কৰা আমাৰ সকলোৰে দায়িত্ব। আমি গছ ৰুব লাগে, প্লাষ্টিকৰ ব্যৱহাৰ কমাব লাগে আৰু আৱৰ্জনা যতে-ততে পেলাব নালাগে। পৰিৱেশ ভাল থাকিলেহে আমি সুস্থভাৱে জীয়াই থাকিব পাৰিম।"},
+{id:"science", title:"বিজ্ঞানৰ অৱদান", cat:"বিজ্ঞান", text:
+"বিজ্ঞানে মানুহৰ জীৱন সলনি কৰি দিছে। বিজ্ঞানৰ অৱদানত আজি আমি বিদ্যুৎ, ৰেল, বিমান, মোবাইল আৰু কম্পিউটাৰ পাইছো। চিকিৎসা বিজ্ঞানে বহুতো ৰোগৰ ঔষধ আৱিষ্কাৰ কৰিছে।\n\nবিজ্ঞানে কৃষি, শিক্ষা আৰু যোগাযোগৰ ক্ষেত্ৰতো বিপ্লৱ আনিছে। কৃষকে উন্নত বীজ আৰু সঁজুলি ব্যৱহাৰ কৰিব পাৰিছে। ছাত্ৰ-ছাত্ৰীয়ে ঘৰতে বহি বিশ্বৰ জ্ঞান লাভ কৰিব পাৰিছে।\n\nকিন্তু বিজ্ঞানৰ অপব্যৱহাৰো হৈছে। অস্ত্ৰ-শস্ত্ৰ আৰু প্ৰদূষণ বিজ্ঞানৰ ভুল ব্যৱহাৰৰ ফল। সেয়ে বিজ্ঞানক মানৱ কল্যাণৰ বাবেহে ব্যৱহাৰ কৰিব লাগে। বিজ্ঞান আমাৰ বন্ধু, শত্ৰু নহয়।"},
+{id:"book", title:"মোৰ প্ৰিয় কিতাপ", cat:"সাহিত্য", text:
+"কিতাপ মানুহৰ সঁচা বন্ধু। মোৰ প্ৰিয় কিতাপখন হৈছে লক্ষ্মীনাথ বেজবৰুৱাৰ 'বুঢ়ী আইৰ সাধু'। সৰুতে মায়ে মোক এই কিতাপখনৰ সাধু শুনাইছিল।\n\nএই কিতাপখনত অসমীয়া লোকসাধু আছে। প্ৰতিটো সাধুতে এটা নৈতিক শিক্ষা আছে। সাধুবোৰ পঢ়িলে মন ভাল লাগে আৰু জীৱনৰ সত্য কথা শিকিব পাৰি। এই কিতাপখনৰ ভাষা সহজ আৰু সুন্দৰ।\n\nকিতাপ পঢ়িলে জ্ঞান বাঢ়ে আৰু কল্পনা শক্তি বিকশিত হয়। মই প্ৰতিদিনে অলপ সময় কিতাপ পঢ়ো। মোৰ ইচ্ছা, মই ডাঙৰ হৈ বহুতো কিতাপ পঢ়িম আৰু নিজেও এখন কিতাপ লিখিম।"},
+{id:"mobile", title:"মোবাইল ফোন", cat:"প্ৰযুক্তি", text:
+"মোবাইল ফোন আজিৰ যুগৰ এক আচৰিত সঁজুলি। ইয়াৰে আমি দূৰত থকা মানুহৰ লগত কথা পাতিব পাৰো, খবৰ পঢ়িব পাৰো আৰু পঢ়া-শুনা কৰিব পাৰো। ছাত্ৰ-ছাত্ৰীয়ে মোবাইলৰ পৰা বহুতো কথা শিকিব পাৰে।\n\nকিন্তু মোবাইলৰ অপব্যৱহাৰো বাঢ়িছে। বহুতে ঘণ্টাৰ পিছত ঘণ্টা খেল খেলি বা চিনেমা চাই সময় নষ্ট কৰে। ইয়াৰ ফলত পঢ়াত ক্ষতি হয় আৰু চকু আৰু স্বাস্থ্য বেয়া হয়।\n\nসেয়ে মোবাইল ভাল কামতহে ব্যৱহাৰ কৰিব লাগে। পঢ়া, খবৰ আৰু প্ৰয়োজনীয় কথাৰ বাবে মোবাইল উপকাৰী। কিন্তু আসক্তি হ'লে ই ক্ষতিকাৰক। সঠিক ব্যৱহাৰেহে মোবাইল আমাৰ বন্ধু হয়।"},
+{id:"brahmaputra", title:"ব্ৰহ্মপুত্ৰ", cat:"অসম", text:
+"ব্ৰহ্মপুত্ৰ অসমৰ জীৱন ৰেখা। তিব্বতৰ পৰা আহি এই নদী অসমৰ মাজেৰে বৈ গৈছে। ই ভাৰতৰ আটাইতকৈ ডাঙৰ নদীবোৰৰ ভিতৰত এখন।\n\nব্ৰহ্মপুত্ৰই অসমক উৰ্বৰ মাটি দিয়ে। ইয়াৰ পানীৰে খেতি হয় আৰু মাছ ধৰা হয়। নদীৰে জাহাজ চলি বাণিজ্য হয়। নদীৰ পাৰত গুৱাহাটী, ডিব্ৰুগড়, যোৰহাটৰ দৰে ডাঙৰ নগৰ গঢ়ি উঠিছে। ব্ৰহ্মপুত্ৰ অসমীয়া সংস্কৃতি আৰু সাহিত্যৰো অংগ।\n\nকিন্তু বৰ্ষাৰ সময়ত ব্ৰহ্মপুত্ৰই বান আনে। বানে ঘৰ-বাৰী, খেতি-পথাৰ নষ্ট কৰে। সেয়ে নদীৰ সঠিক ব্যৱস্থাপনা আৰু বান নিয়ন্ত্ৰণ অতি প্ৰয়োজনীয়। ব্ৰহ্মপুত্ৰ আমাৰ সম্পদ, ইয়াক ৰক্ষা কৰা আমাৰ দায়িত্ব।"},
+{id:"time", title:"সময়ৰ মূল্য", cat:"জীৱন", text:
+"সময় আটাইতকৈ মূল্যবান সম্পদ। হেৰোৱা ধন ঘূৰাই পাব পাৰি, কিন্তু হেৰোৱা সময় কেতিয়াও ঘূৰি নাহে। সেয়ে সময়ৰ সঠিক ব্যৱহাৰ কৰাটো অতি প্ৰয়োজনীয়।\n\nছাত্ৰ জীৱনত সময়ৰ মূল্য আটাইতকৈ বেছি। যি ছাত্ৰই সময়মতে পঢ়ে, তেওঁ পৰীক্ষাত ভাল ফল কৰে। সময় নষ্ট কৰা ছাত্ৰই পিছত অনুতাপ কৰিব লগা হয়। প্ৰতিদিনে সময়ৰ তালিকা বনাই কাম কৰিলে সকলো কাম সময়মতে হয়।\n\nমহান ব্যক্তিসকলে সময়ক সন্মান কৰিছিল। সময় পালন কৰা মানুহকে সকলোৱে বিশ্বাস কৰে। সেয়ে আমি প্ৰতিটো মুহূৰ্তক মূল্য দিব লাগে আৰু সময় নষ্ট কৰিব নালাগে।"},
+{id:"aim", title:"মোৰ জীৱনৰ লক্ষ্য", cat:"জীৱন", text:
+"প্ৰতিজন মানুহৰে জীৱনত এটা লক্ষ্য থাকিব লাগে। লক্ষ্য নথকা জীৱন নাওৰ দৰে, যি বতাহৰ দিশে ভাঁহি যায়। মোৰ জীৱনৰ লক্ষ্য হৈছে শিক্ষক হোৱা।\n\nশিক্ষক হৈ মই গাঁৱৰ ছাত্ৰ-ছাত্ৰীক পঢ়াব বিচাৰো। শিক্ষাই মানুহক জ্ঞান দিয়ে আৰু অন্ধকাৰৰ পৰা পোহৰলৈ লৈ যায়। এজন ভাল শিক্ষকে সমাজ সলনি কৰিব পাৰে। মোৰ শিক্ষকসকলকে দেখি মোৰ এই ইচ্ছা জাগিছে।\n\nলক্ষ্যত উপনীত হ'বলৈ মই এতিয়াৰ পৰাই কঠোৰ পৰিশ্ৰম কৰিব লাগিব। ভালদৰে পঢ়ি, সৎ হৈ আৰু ধৈৰ্য ধৰি মই মোৰ লক্ষ্যত উপনীত হ'ম। মোৰ সপোন এদিন পূৰণ হ'ব বুলি মই বিশ্বাস কৰোঁ।"},
+{id:"computer", title:"কম্পিউটাৰ", cat:"প্ৰযুক্তি", text:
+"কম্পিউটাৰ আজিৰ যুগৰ এক বিস্ময়কৰ আৱিষ্কাৰ। ইয়াৰে আমি পঢ়া-শুনা, কাম-কাজ আৰু যোগাযোগ কৰিব পাৰো। কম্পিউটাৰে কঠিন হিচাপ মুহূৰ্ততে কৰি দিয়ে।\n\nবিদ্যালয়, কাৰ্যালয়, হাস্পতাল আৰু বেংকত কম্পিউটাৰ ব্যৱহাৰ হয়। ছাত্ৰ-ছাত্ৰীয়ে কম্পিউটাৰৰ পৰা বিশ্বৰ জ্ঞান লাভ কৰিব পাৰে। ইণ্টাৰনেটৰ জৰিয়তে আমি যিকোনো তথ্য বিচাৰি পাওঁ।\n\nকিন্তু কম্পিউটাৰৰ সন্মুখত বেছি সময় বহিলে স্বাস্থ্যৰ ক্ষতি হয়। সেয়ে সঠিক নিয়ম মানি কম্পিউটাৰ ব্যৱহাৰ কৰিব লাগে। কম্পিউটাৰ শিকা আজিৰ দিনত অতি প্ৰয়োজনীয়। ভৱিষ্যতে কম্পিউটাৰ নজনা মানুহ পিছপৰি ৰ'ব।"}
+];
+
+const $ = (id) => document.getElementById(id);
+const words = (t) => (t.trim().split(/\s+/).filter(Boolean).length);
+const readMins = (t) => Math.max(1, Math.round(words(t) / 200));
+
+let curCat = "All";
+let curEssay = null;
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function renderChips() {
+  const cats = ["All", ...new Set(ESSAYS.map((e) => e.cat))];
+  $("chips").innerHTML = cats
+    .map((c) => `<button data-cat="${esc(c)}" class="${c === curCat ? "active" : ""}">${esc(c)}</button>`)
+    .join("");
+  document.querySelectorAll("#chips button").forEach((b) =>
+    b.addEventListener("click", () => {
+      curCat = b.dataset.cat;
+      renderChips();
+      renderList();
+    })
+  );
+}
+
+function renderList() {
+  const q = $("q").value.trim();
+  const items = ESSAYS.filter((e) => {
+    if (curCat !== "All" && e.cat !== curCat) return false;
+    if (q && !(e.title.includes(q) || e.text.includes(q))) return false;
+    return true;
+  });
+  $("list").innerHTML = items.length
+    ? items
+        .map(
+          (e) => `<div class="card" data-id="${e.id}">
+            <h3>${esc(e.title)}</h3>
+            <div class="meta">${esc(e.cat)} · ${words(e.text)} words · ${readMins(e.text)} min read</div>
+            <div class="prev">${esc(e.text.split("\n\n")[0].slice(0, 120))}…</div>
+          </div>`
+        )
+        .join("")
+    : `<p class="muted">No essays found.</p>`;
+  document.querySelectorAll("#list .card").forEach((c) =>
+    c.addEventListener("click", () => openEssay(c.dataset.id))
+  );
+}
+
+function openEssay(id) {
+  curEssay = ESSAYS.find((e) => e.id === id);
+  if (!curEssay) return;
+  $("readTitle").textContent = curEssay.title;
+  $("readMeta").textContent = `${curEssay.cat} · ${words(curEssay.text)} words · ${readMins(curEssay.text)} min read`;
+  $("readText").innerHTML = curEssay.text
+    .split("\n\n")
+    .map((p) => `<p>${esc(p)}</p>`)
+    .join("");
+  $("readMsg").textContent = "";
+  $("essaysView").classList.add("hidden");
+  $("readView").classList.remove("hidden");
+  window.scrollTo(0, 0);
+}
+
+function showTab(which) {
+  $("tabEssays").classList.toggle("active", which === "essays");
+  $("tabWrite").classList.toggle("active", which === "write");
+  $("essaysView").classList.toggle("hidden", which !== "essays");
+  $("readView").classList.add("hidden");
+  $("writeView").classList.toggle("hidden", which !== "write");
+  if (which === "write") renderDrafts();
+}
+
+function copyText(t, msgEl, msg) {
+  const done = () => { if (msgEl) msgEl.textContent = msg; };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(done).catch(() => fallbackCopy(t, done));
+  } else {
+    fallbackCopy(t, done);
+  }
+}
+function fallbackCopy(t, done) {
+  const ta = document.createElement("textarea");
+  ta.value = t;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); } catch (e) {}
+  document.body.removeChild(ta);
+  done();
+}
+
+function downloadText(filename, t) {
+  const blob = new Blob([t], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(a.href);
+    a.remove();
+  }, 500);
+}
+
+// Drafts (saved in this browser only).
+const DKEY = "rochona-drafts-v1";
+function loadDrafts() {
+  try { return JSON.parse(localStorage.getItem(DKEY) || "[]"); } catch (e) { return []; }
+}
+function saveDrafts(d) {
+  try { localStorage.setItem(DKEY, JSON.stringify(d)); } catch (e) {}
+}
+function renderDrafts() {
+  const ds = loadDrafts();
+  $("drafts").innerHTML = ds.length
+    ? ds
+        .map(
+          (d, i) => `<div class="draft">
+            <div class="t">${esc(d.title || "Untitled")}</div>
+            <div class="muted">${words(d.text)} words · ${esc(d.date || "")}</div>
+            <div class="row" style="margin-top:8px">
+              <button class="btn" data-load="${i}">Open</button>
+              <button class="btn" data-del="${i}">Delete</button>
+            </div>
+          </div>`
+        )
+        .join("")
+    : `<p class="muted">No drafts saved yet.</p>`;
+  document.querySelectorAll("[data-load]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const d = loadDrafts()[Number(b.dataset.load)];
+      if (!d) return;
+      $("draftTitle").value = d.title || "";
+      $("editor").value = d.text || "";
+      updateCounts();
+      window.scrollTo(0, 0);
+    })
+  );
+  document.querySelectorAll("[data-del]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const ds = loadDrafts();
+      ds.splice(Number(b.dataset.del), 1);
+      saveDrafts(ds);
+      renderDrafts();
+    })
+  );
+}
+
+function updateCounts() {
+  const t = $("editor").value;
+  $("counts").textContent = `${words(t)} words · ${t.length} characters`;
+}
+
+$("q").addEventListener("input", renderList);
+$("tabEssays").addEventListener("click", () => showTab("essays"));
+$("tabWrite").addEventListener("click", () => showTab("write"));
+$("backBtn").addEventListener("click", () => {
+  $("readView").classList.add("hidden");
+  $("essaysView").classList.remove("hidden");
+});
+$("copyBtn").addEventListener("click", () => {
+  if (!curEssay) return;
+  copyText(curEssay.title + "\n\n" + curEssay.text, $("readMsg"), "Copied.");
+});
+$("dlBtn").addEventListener("click", () => {
+  if (!curEssay) return;
+  downloadText(curEssay.id + ".txt", curEssay.title + "\n\n" + curEssay.text);
+  $("readMsg").textContent = "Downloaded.";
+});
+$("editor").addEventListener("input", updateCounts);
+$("saveDraft").addEventListener("click", () => {
+  const t = $("editor").value.trim();
+  if (!t) { $("writeMsg").textContent = "Write something first."; return; }
+  const ds = loadDrafts();
+  ds.unshift({
+    title: $("draftTitle").value.trim(),
+    text: $("editor").value,
+    date: new Date().toLocaleDateString("en-IN"),
+  });
+  saveDrafts(ds);
+  renderDrafts();
+  $("writeMsg").textContent = "Draft saved in this browser.";
+});
+$("copyDraft").addEventListener("click", () => {
+  copyText($("editor").value, $("writeMsg"), "Copied.");
+});
+$("dlDraft").addEventListener("click", () => {
+  const title = $("draftTitle").value.trim() || "rochona";
+  downloadText(title.replace(/\s+/g, "-") + ".txt", $("editor").value);
+  $("writeMsg").textContent = "Downloaded.";
+});
+$("clearDraft").addEventListener("click", () => {
+  $("editor").value = "";
+  $("draftTitle").value = "";
+  updateCounts();
+  $("writeMsg").textContent = "";
+});
+
+renderChips();
+renderList();
+updateCounts();
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>
