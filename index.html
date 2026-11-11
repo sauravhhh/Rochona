@@ -50,7 +50,6 @@ textarea{width:100%;min-height:260px;padding:14px;font-size:17px;line-height:1.7
 </header>
 <div class="tabs">
   <button id="tabEssays" class="active">Essays</button>
-  <button id="tabWrite">Write</button>
 </div>
 <main>
   <section id="essaysView">
@@ -68,20 +67,6 @@ textarea{width:100%;min-height:260px;padding:14px;font-size:17px;line-height:1.7
       <button id="shareBtn" class="btn">Share</button>
     </div>
     <p id="readMsg" class="muted" style="margin-top:10px"></p>
-  </section>
-  <section id="writeView" class="hidden">
-    <input id="draftTitle" class="search" type="text" placeholder="Title of your essay (optional)">
-    <textarea id="editor" placeholder="Write your rochona here in Assamese…"></textarea>
-    <p id="counts" class="counts">0 words · 0 characters</p>
-    <div class="row">
-      <button id="saveDraft" class="btn dark">Save draft</button>
-      <button id="copyDraft" class="btn">Copy</button>
-      <button id="shareDraft" class="btn">Share</button>
-      <button id="clearDraft" class="btn">Clear</button>
-    </div>
-    <p id="writeMsg" class="muted" style="margin-top:10px"></p>
-    <h3 style="margin:22px 0 10px">Your drafts</h3>
-    <div id="drafts"></div>
   </section>
 </main>
 <script>
@@ -161,14 +146,11 @@ function openEssay(id){
   show("read");
 }
 function show(v){
-  ["essaysView","readView","writeView"].forEach(id => $("#"+id).classList.toggle("hidden", id !== v));
-  $("#tabEssays").classList.toggle("active", v !== "writeView");
-  $("#tabWrite").classList.toggle("active", v === "writeView");
+  ["essaysView","readView"].forEach(id => $("#"+id).classList.toggle("hidden", id !== v));
   window.scrollTo(0,0);
 }
 $("#q").addEventListener("input", renderList);
 $("#tabEssays").onclick = () => show("essaysView");
-$("#tabWrite").onclick = () => show("writeView");
 $("#backBtn").onclick = () => show("essaysView");
 function copyText(text, msgEl, msg){
   if (navigator.clipboard && navigator.clipboard.writeText){
@@ -192,53 +174,7 @@ function shareText(title, text, msgEl){
 }
 $("#copyBtn").onclick = () => current && copyText(labeledText(current), $("#readMsg"), "Copied.");
 $("#shareBtn").onclick = () => current && shareText(current.title, labeledText(current), $("#readMsg"));
-const KEY = "rochona-drafts-v1";
-const getDrafts = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } };
-const setDrafts = d => localStorage.setItem(KEY, JSON.stringify(d));
-function updateCounts(){
-  const t = $("#editor").value;
-  $("#counts").textContent = wc(t) + " words · " + t.length + " characters";
-}
-$("#editor").addEventListener("input", updateCounts);
-$("#saveDraft").onclick = () => {
-  const text = $("#editor").value.trim();
-  if (!text){ $("#writeMsg").textContent = "Write something first."; return; }
-  const title = $("#draftTitle").value.trim() || ("Untitled " + new Date().toLocaleDateString("en-IN"));
-  const d = getDrafts(); d.unshift({ title, text, time: Date.now() }); setDrafts(d);
-  $("#writeMsg").textContent = "Draft saved.";
-  renderDrafts();
-};
-$("#copyDraft").onclick = () => {
-  const text = $("#editor").value.trim();
-  if (!text){ $("#writeMsg").textContent = "Write something first."; return; }
-  copyText((($("#draftTitle").value.trim() || "My essay") + "\n\n" + text), $("#writeMsg"), "Copied.");
-};
-$("#shareDraft").onclick = () => {
-  const text = $("#editor").value.trim();
-  if (!text){ $("#writeMsg").textContent = "Write something first."; return; }
-  shareText($("#draftTitle").value.trim() || "My essay", text, $("#writeMsg"));
-};
-$("#clearDraft").onclick = () => { $("#editor").value = ""; $("#draftTitle").value = ""; updateCounts(); $("#writeMsg").textContent = ""; };
-function renderDrafts(){
-  const d = getDrafts();
-  $("#drafts").innerHTML = d.length ? d.map((x,i) => `
-    <div class="draft">
-      <div class="t">${esc(x.title)}</div>
-      <div class="muted">${wc(x.text)} words · ${new Date(x.time).toLocaleDateString("en-IN")}</div>
-      <div class="row" style="margin-top:8px">
-        <button class="btn" data-open="${i}">Open</button>
-        <button class="btn" data-del="${i}">Delete</button>
-      </div>
-    </div>`).join("") : `<p class="muted">No drafts yet.</p>`;
-  document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => {
-    const x = getDrafts()[+b.dataset.open];
-    $("#draftTitle").value = x.title; $("#editor").value = x.text; updateCounts();
-  });
-  document.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
-    const d2 = getDrafts(); d2.splice(+b.dataset.del, 1); setDrafts(d2); renderDrafts();
-  });
-}
-renderChips(); renderList(); renderDrafts(); updateCounts();
+renderChips(); renderList();
 if ("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js"); }
 </script>
 </body>
